@@ -26,14 +26,18 @@ to_dc() { # "example.com" -> "dc=example,dc=com"
 BASE_DN="$(to_dc "$LDAP_DOMAIN")"
 
 echo "[SERVER] Using BASE_DN: $BASE_DN"
-
+echo
+echo "##################################################"
 echo "[SERVER] /etc/hosts: ensure ${LDAP_SERVER_IP} ${LDAP_HOSTNAME}"
+sleep 3
 if ! grep -qE "[[:space:]]${LDAP_HOSTNAME}(\s|$)" /etc/hosts; then
   echo "${LDAP_SERVER_IP} ${LDAP_HOSTNAME}" >> /etc/hosts
 fi
 hostnamectl set-hostname "${LDAP_HOSTNAME}" || true
-
+echo
+echo "##################################################"
 echo "[SERVER] Install OpenLDAP server & tools"
+sleep 3
 apt-get update -y
 # Preseed slapd for non-interactive install
 echo "slapd slapd/no_configuration boolean false" | debconf-set-selections
@@ -48,8 +52,10 @@ echo "slapd slapd/password2 password ${LDAP_ADMIN_PASSWORD}" | debconf-set-selec
 apt-get install -y slapd ldap-utils ca-certificates openssl
 
 systemctl enable slapd
-
+echo
+echo "##################################################"
 echo "[SERVER] Generate CA and server cert with SAN=DNS:${LDAP_HOSTNAME}"
+sleep 3
 SSL_DIR="/etc/ssl/ldap"
 mkdir -p "${SSL_DIR}"
 chmod 750 "${SSL_DIR}"
@@ -81,8 +87,10 @@ openssl x509 -req -in ldap.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
 chown -R openldap:openldap "${SSL_DIR}"
 chmod 600 "${SSL_DIR}/ldap.key"
 popd >/dev/null
-
+echo
+echo "##################################################"
 echo "[SERVER] Configure slapd TLS (cn=config) to use ca.crt / ldap.crt / ldap.key"
+sleep 3
 cat > /tmp/olc_tls.ldif <<EOF
 dn: cn=config
 changetype: modify
@@ -100,15 +108,19 @@ olcTLSProtocolMin: 3.3
 EOF
 
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/olc_tls.ldif
-
+echo
+echo "##################################################"
 echo "[SERVER] Enable ldaps:/// listener (port 636)"
+sleep 3
 if grep -q '^SLAPD_SERVICES=' /etc/default/slapd; then
   sed -i 's|^SLAPD_SERVICES=.*|SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"|' /etc/default/slapd
 else
   echo 'SLAPD_SERVICES="ldap:/// ldapi:/// ldaps:///"' >> /etc/default/slapd
 fi
-
+echo
+echo "##################################################"
 echo "[SERVER] Basic hardening: disable anonymous binds; require TLS strength"
+sleep 3
 cat > /tmp/olc_hardening.ldif <<'EOF'
 dn: cn=config
 changetype: modify
@@ -119,9 +131,10 @@ replace: olcSecurity
 olcSecurity: ssf=128
 EOF
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/olc_hardening.ldif || true
-
+echo
+echo "##################################################"
 echo "[SERVER] Configure LDAP client defaults and trust CA"
-
+sleep 3
 # Copy CA to system trust store
 cp /etc/ssl/ldap/ca.crt /usr/local/share/ca-certificates/ldap-ca.crt
 update-ca-certificates
@@ -134,15 +147,21 @@ URI     ldaps://ldap.example.com
 TLS_CACERT /etc/ssl/ldap/ca.crt
 TLS_REQCERT demand
 EOF
-
+echo
+echo "##################################################"
 echo "[SERVER] Restart slapd"
+sleep 3
 systemctl restart slapd
 sleep 1
-
+echo
+echo "##################################################"
 echo "[SERVER] Verify listeners"
+sleep 3
 ss -tulnp | grep slapd || (echo "slapd not listening!" && exit 1)
-
+echo
+echo "##################################################"
 echo "[SERVER] Create base OUs, groups, users, and readonly bind account"
+sleep 3
 U1_HASH=$(slappasswd -s "${USER1_PASSWORD}")
 U2_HASH=$(slappasswd -s "${USER2_PASSWORD}")
 RO_HASH=$(slappasswd -s "${READONLY_PASSWORD}")
@@ -207,8 +226,10 @@ description: Read-only bind user for SSSD
 EOF
 
 ldapadd -x -H ldaps://localhost:636   -D "cn=admin,dc=example,dc=com" -w "${LDAP_ADMIN_PASSWORD}" -f /tmp/bootstrap.ldif
-
+echo
+echo "##################################################"
 echo "[SERVER] Quick LDAPS check"
+sleep 3
 ldapsearch -x -H "ldaps://${LDAP_HOSTNAME}" -b "${BASE_DN}" -D "cn=admin,${BASE_DN}" -w "${LDAP_ADMIN_PASSWORD}" "(objectClass=*)" >/dev/null
 
 echo "[SERVER] All done ✅

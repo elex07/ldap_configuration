@@ -15,24 +15,32 @@ export DEBIAN_FRONTEND=noninteractive
 
 to_dc() { local d="${1}"; awk -F. '{print "dc="$1",dc="$2}' <<<"$d"; }
 BASE_DN="$(to_dc "$LDAP_DOMAIN")"
-
+echo
+echo "##################################################"
 echo "[CLIENT] /etc/hosts: ensure ${LDAP_SERVER_IP} ${LDAP_HOSTNAME}"
+sleep 3
 if ! grep -qE "[[:space:]]${LDAP_HOSTNAME}(\s|$)" /etc/hosts; then
   echo "${LDAP_SERVER_IP} ${LDAP_HOSTNAME}" | sudo tee -a /etc/hosts >/dev/null
 fi
-
+echo
+echo "##################################################"
 echo "[CLIENT] Install SSSD + tools"
+sleep 3
 apt-get update -y
 apt-get install -y sssd sssd-ldap libnss-sss libpam-sss ldap-utils ca-certificates openssl sssd-tools
-
-echo "[CLIENT] Trust the server's certificate (grab from 636)"
+echo
+echo "##################################################"
+echo "[CLIENT] Trust the server's certificate (grab from Server)"
+sleep 3
 CERT_DST="/usr/local/share/ca-certificates/ldap-${LDAP_HOSTNAME}.crt"
 # Grab the server's leaf cert and store as local CA (sufficient for trust in this lab)
 openssl s_client -connect "${LDAP_HOSTNAME}:636" -servername "${LDAP_HOSTNAME}" -showcerts </dev/null 2>/dev/null \
   | awk '/BEGIN CERTIFICATE/{flag=1} /END CERTIFICATE/{print; exit} flag{print}' > "${CERT_DST}"
 update-ca-certificates
-
+echo
+echo "##################################################"
 echo "[CLIENT] Create /etc/sssd/sssd.conf"
+sleep 3
 mkdir -p /etc/sssd
 cat > /etc/sssd/sssd.conf <<EOF
 [sssd]
@@ -69,8 +77,10 @@ EOF
 
 chmod 600 /etc/sssd/sssd.conf
 chown root:root /etc/sssd/sssd.conf
-
-echo "[CLIENT] Wire NSS to SSSD"
+echo
+echo "##################################################"
+echo "[CLIENT] Wire NSS to SSSD - NSSWITCH configuration"
+sleep 3
 # Ensure 'sss' is present for passwd/group/shadow
 for key in passwd group shadow; do
   if grep -q "^${key}:" /etc/nsswitch.conf; then
@@ -79,19 +89,25 @@ for key in passwd group shadow; do
     echo "${key}:         files sss" >> /etc/nsswitch.conf
   fi
 done
-
-echo "[CLIENT] Enable home auto-creation at first login"
+echo
+echo "##################################################"
+echo "[CLIENT] Enable home directory auto-creation at first login"
+sleep 3
 if ! grep -q "pam_mkhomedir.so" /etc/pam.d/common-session; then
   echo "session required pam_mkhomedir.so skel=/etc/skel umask=0077" >> /etc/pam.d/common-session
 fi
-
+echo
+echo "##################################################"
 echo "[CLIENT] Restart SSSD and clear cache"
+sleep 3
 systemctl enable sssd
 systemctl restart sssd
 sss_cache -E || true
 sleep 1
-
+echo
+echo "##################################################"
 echo "[CLIENT] Quick LDAPS checks"
+sleep 3
 set +e
 ldapsearch -x -H "ldaps://${LDAP_HOSTNAME}" \
   -D "${READONLY_DN}" -w "${READONLY_PASSWORD}" \
@@ -102,8 +118,10 @@ if [ "$LDAP_RC" -ne 0 ]; then
   echo "[CLIENT][ERROR] Cannot query LDAP over LDAPS. Check cert trust / network."
   exit 1
 fi
-
+echo
+echo "##################################################"
 echo "[CLIENT] Verify users/groups via SSSD"
+sleep 3
 getent passwd user1 || (echo "[ERROR] user1 not found via getent" && exit 1)
 getent passwd user2 || (echo "[ERROR] user2 not found via getent" && exit 1)
 getent group group1 || (echo "[ERROR] group1 not found via getent" && exit 1)
