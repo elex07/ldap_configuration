@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ##### >>> EDIT THESE IF YOU LIKE (defaults are fine for a quick lab) <<<
+
+# Set these variables to defined values if they are null
 LDAP_DOMAIN="${LDAP_DOMAIN:-example.com}"
 LDAP_ORG="${LDAP_ORG:-ExampleOrg}"
 LDAP_HOSTNAME="${LDAP_HOSTNAME:-ldap.example.com}"     # CN & SAN must match this
@@ -56,6 +58,7 @@ echo
 echo "##################################################"
 echo "[SERVER] Generate CA and server cert with SAN=DNS:${LDAP_HOSTNAME}"
 sleep 3
+# SSL|TLS part starts here
 SSL_DIR="/etc/ssl/ldap"
 mkdir -p "${SSL_DIR}"
 chmod 750 "${SSL_DIR}"
@@ -148,6 +151,7 @@ TLS_CACERT /etc/ssl/ldap/ca.crt
 TLS_REQCERT demand
 EOF
 echo
+# SSl|TLS config ends here
 echo "##################################################"
 echo "[SERVER] Restart slapd"
 sleep 3
@@ -232,7 +236,7 @@ echo "[SERVER] Quick LDAPS check"
 sleep 3
 ldapsearch -x -H "ldaps://${LDAP_HOSTNAME}" -b "${BASE_DN}" -D "cn=admin,${BASE_DN}" -w "${LDAP_ADMIN_PASSWORD}" "(objectClass=*)" >/dev/null
 
-echo "[SERVER] All done ✅
+echo "[SERVER] All done
 - LDAPS hostname: ${LDAP_HOSTNAME}
 - BASE_DN: ${BASE_DN}
 - Admin DN: cn=admin,${BASE_DN}

@@ -2,8 +2,11 @@
 set -euo pipefail
 
 ##### >>> EDIT THESE IF YOU LIKE <<<
+# Set it to hard coded domain name if it is null
 LDAP_DOMAIN="${LDAP_DOMAIN:-example.com}"
+# Set it to hard coded hostname if it is null
 LDAP_HOSTNAME="${LDAP_HOSTNAME:-ldap.example.com}"    # must match server cert CN/SAN
+# Set it to Hard coded value if it is null
 LDAP_SERVER_IP="${LDAP_SERVER_IP:-10.0.2.17}"         # used to write /etc/hosts
 
 # Must match what server created:
@@ -11,6 +14,7 @@ READONLY_DN="${READONLY_DN:-cn=readonly,dc=example,dc=com}"
 READONLY_PASSWORD="${READONLY_PASSWORD:-ReadOnlyPass123}"
 ##### <<< EDIT ABOVE IF NEEDED >>>
 
+# No wait for interective input
 export DEBIAN_FRONTEND=noninteractive
 
 to_dc() { local d="${1}"; awk -F. '{print "dc="$1",dc="$2}' <<<"$d"; }
@@ -33,7 +37,7 @@ echo "##################################################"
 echo "[CLIENT] Trust the server's certificate (grab from Server)"
 sleep 3
 CERT_DST="/usr/local/share/ca-certificates/ldap-${LDAP_HOSTNAME}.crt"
-# Grab the server's leaf cert and store as local CA (sufficient for trust in this lab)
+# Grab the server's leaf cert and store as local CA (sufficient for trust in this lab) in the above path
 openssl s_client -connect "${LDAP_HOSTNAME}:636" -servername "${LDAP_HOSTNAME}" -showcerts </dev/null 2>/dev/null \
   | awk '/BEGIN CERTIFICATE/{flag=1} /END CERTIFICATE/{print; exit} flag{print}' > "${CERT_DST}"
 update-ca-certificates
@@ -139,7 +143,7 @@ command -v mkhomedir_helper >/dev/null 2>&1 && {
 su -l -c "true" user1 || true
 su -l -c "true" user2 || true
 
-echo "[CLIENT] All done ✅
+echo "[CLIENT] All done
 - Server: ldaps://${LDAP_HOSTNAME}
 - Users visible via 'id' and 'getent'
 - Root can 'su - user1' and 'su - user2' (homes created on first use)

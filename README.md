@@ -1,2 +1,7 @@
 # ldap_configuration
-Client and Server ldap configuration using shell script
+LDAP Server and LDAP Client configuration using shell script
+
+# Description
+The server-side script installs OpenLDAP and its supporting utilities, generates a private Certificate Authority, and uses that CA to sign the LDAP server’s TLS certificate. This separation between the CA certificate and the server certificate is essential, because clients must trust the CA rather than trusting the server certificate directly. The script then configures OpenLDAP’s dynamic configuration database (cn=config) to use these certificates, enabling LDAPS on port 636 and enforcing encrypted connections. Security hardening is applied to disable anonymous binds and prevent unsafe authentication methods. After TLS is fully operational, the script creates the base directory structure, organizational units, POSIX groups, user accounts, and a dedicated read-only bind account that will later be used by LDAP clients for directory searches.
+
+The client-side script installs SSSD, LDAP client utilities, and the necessary PAM and NSS components. It copies the CA certificate generated on the server to the client system and explicitly configures LDAP and SSSD to trust that CA. This explicit trust model is intentional; instead of relying on the system-wide CA bundle, the configuration points directly to the CA certificate used to sign the LDAP server’s certificate. This guarantees consistent behavior across systems and avoids hidden dependencies on distribution-specific certificate stores. The client configuration ensures that all LDAP communication uses LDAPS and that certificate verification is enforced.
